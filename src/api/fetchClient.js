@@ -4,21 +4,53 @@ let csrfTokenCache = null;
 
 async function ensureCsrf() {
   if (csrfTokenCache) return csrfTokenCache;
+
   const res = await fetch(`${API_BASE}/csrf`, {
     method: 'PATCH',
     credentials: 'include',
+    headers: {
+      'X-Requested-With': 'XMLHttpRequest',
+    },
   });
-  const data = await res.json().catch(() => ({}));
-  csrfTokenCache = data?.csrfToken || data?.csrf || data?.token || null;
+
+  // prova läsa JSON
+  let data = {};
+  try { data = await res.json(); } catch { /* kan vara tom body */ }
+
+  // plocka också från headers om JSON saknas
+  const h = Object.fromEntries(res.headers.entries());
+  const headerToken =
+    h['x-csrf-token'] ||
+    h['csrf-token'] ||
+    h['x-xsrf-token'] ||
+    h['x-csrf'] ||
+    null;
+
+  csrfTokenCache =
+    data?.csrfToken || data?.csrf || data?.token || headerToken || null;
+
+  if (!csrfTokenCache) {
+    console.warn('CSRF token saknas efter /csrf – kontrollera tredjepartscookies och Netlify/HTTPS.');
+  }
   return csrfTokenCache;
 }
 
+/**
+ * Central fetch:
+ * - Authorization: Bearer <jwt> om finns
+ * - X-CSRF-Token på POST/PUT/PATCH/DELETE
+ * - credentials: include
+ */
 export default async function fetchClient(path, options = {}) {
   const method = (options.method || 'GET').toUpperCase();
-  const token = localStorage.getItem('token');
+  const jwt = localStorage.getItem('token');
 
-  const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
-  if (token) headers.Authorization = `Bearer ${token}`;
+  const headers = {
+    'Content-Type': 'application/json',
+    'X-Requested-With': 'XMLHttpRequest',
+    ...(options.headers || {}),
+  };
+  if (jwt) headers.Authorization = `Bearer ${jwt}`;
 
   if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
     const csrf = await ensureCsrf();
