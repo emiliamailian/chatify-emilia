@@ -1,62 +1,89 @@
 const API_BASE = 'https://chatify-api.up.railway.app';
 
-// Hämta CSRF-token från /csrf (läser både headers och body)
+// Hämtar CSRF och loggar status, headers och body
 async function getCsrfToken() {
+  console.groupCollapsed('[CSRF] PATCH /csrf');
+
   const res = await fetch(`${API_BASE}/csrf`, {
     method: 'PATCH',
-    credentials: 'include',   // viktigt för CSRF-cookie
+    credentials: 'include',
     cache: 'no-store',
-    headers: { Accept: 'application/json' },
+    headers: { Accept: 'application/json' }
   });
 
-  // 1) prova headers
-  const headerToken =
-    res.headers.get('x-csrf-token') ||
-    res.headers.get('csrf-token');
+  const headersObj = Object.fromEntries(res.headers.entries());
 
-  // 2) prova JSON-body
-  let bodyToken = null;
-  try {
-    const data = await res.json();
-    bodyToken = data?.csrfToken || data?.csrf || data?.token || null;
-  } catch {}
+  const clone = res.clone();
+  let bodyText = '';
+  try { bodyText = await clone.text(); } catch {}
+
+  let bodyJson = {};
+  try { bodyJson = bodyText ? JSON.parse(bodyText) : {}; } catch {}
+
+  const headerToken =
+    headersObj['x-csrf-token'] ||
+    headersObj['csrf-token'] ||
+    null;
+
+  const bodyToken =
+    (bodyJson && (bodyJson.csrfToken || bodyJson.csrf || bodyJson.token)) || null;
 
   const token = headerToken || bodyToken || null;
-  console.info('[CSRF] token =', token);
+
+  console.log('status:', res.status);
+  console.log('headers:', headersObj);
+  console.log('body:', Object.keys(bodyJson).length ? bodyJson : bodyText);
+  console.log('chosen token:', token);
+
+  console.groupEnd();
   return token;
 }
 
-// Central fetch
+// Central fetch som loggar request + response
 export default async function fetchClient(path, options = {}) {
   const method = (options.method || 'GET').toUpperCase();
   const jwt = localStorage.getItem('token');
 
   const headers = {
     'Content-Type': 'application/json',
-    ...(options.headers || {}),
+    ...(options.headers || {})
   };
   if (jwt) headers.Authorization = `Bearer ${jwt}`;
 
-  // Endast för skrivande anrop skickar vi CSRF-header
+  // För skrivande metoder: hämta CSRF och lägg på ENDAST X-CSRF-Token
   if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
     const csrf = await getCsrfToken();
-    if (csrf) headers['X-CSRF-Token'] = csrf; // bara denna header
+    if (csrf) headers['X-CSRF-Token'] = csrf;
   }
+
+  console.groupCollapsed(`[API] ${method} ${path}`);
+  console.log('request headers:', headers);
+  console.log('request body:', options.body || null);
 
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
     method,
     headers,
-    credentials: 'include',
+    credentials: 'include'
   });
 
-  const text = await res.text();
+  const resHeaders = Object.fromEntries(res.headers.entries());
+
+  const clone = res.clone();
+  let resText = '';
+  try { resText = await clone.text(); } catch {}
+
   let data;
-  try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
+  try { data = resText ? JSON.parse(resText) : {}; } catch { data = { raw: resText }; }
+
+  console.log('status:', res.status);
+  console.log('response headers:', resHeaders);
+  console.log('response body:', data);
+  console.groupEnd();
 
   if (!res.ok) {
-    const message = data?.message || data?.error || res.statusText || 'Unknown error';
-    return { success: false, status: res.status, message, data };
+    const message = (data && (data.message || data.error)) || res.statusText || 'Unknown error';
+    return { success: false, status: res.status, message, data, headers: resHeaders };
   }
-  return { success: true, status: res.status, data };
+  return { success: true, status: res.status, data, headers: resHeaders };
 }
