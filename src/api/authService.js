@@ -13,7 +13,7 @@ export async function register({ username, email, password, avatar }) {
   const csrf = await getCsrf();
 
   const headers = { 'Content-Type': 'application/json' };
-  if (csrf) headers['csrf-token'] = csrf; // OBS: använd 'csrf-token'
+  if (csrf) headers['X-CSRF-Token'] = csrf; // ⬅️ BYT TILL DENNA
 
   const res = await fetch(`${API}/auth/register`, {
     method: 'POST',
@@ -33,7 +33,7 @@ export async function login({ username, password }) {
   const csrf = await getCsrf();
 
   const headers = { 'Content-Type': 'application/json' };
-  if (csrf) headers['csrf-token'] = csrf; // samma header här
+  if (csrf) headers['X-CSRF-Token'] = csrf; // ⬅️ SAMMA HÄR
 
   const res = await fetch(`${API}/auth/token`, {
     method: 'POST',
