@@ -2,28 +2,23 @@ const API_BASE = 'https://chatify-api.up.railway.app';
 
 let csrfTokenCache = null;
 
-// Hämtar CSRF-token från /csrf (JSON eller headers). Ingen förbjuden header används.
+// Hämta CSRF-token från /csrf (JSON eller headers)
 async function fetchCsrfToken() {
   const res = await fetch(`${API_BASE}/csrf`, {
     method: 'PATCH',
-    credentials: 'include',   // viktigt: skicka/kvitto på cookie
+    credentials: 'include',
     cache: 'no-store',
   });
 
-  // Försök läsa JSON-body
   let data = {};
-  try { data = await res.json(); } catch { /* tom body är ok */ }
+  try { data = await res.json(); } catch {}
 
-  // Prova header-varianter också
   const h = Object.fromEntries(res.headers.entries());
   const headerToken =
     h['x-csrf-token'] ||
     h['csrf-token'] ||
-    h['x-xsrf-token'] ||
-    h['x-csrf'] ||
     null;
 
-  // Välj första som finns
   return data?.csrfToken || data?.csrf || data?.token || headerToken || null;
 }
 
@@ -33,12 +28,7 @@ async function ensureCsrf() {
   return csrfTokenCache;
 }
 
-/**
- * Central fetch:
- * - Lägger på Authorization: Bearer <jwt> om finns
- * - För POST/PUT/PATCH/DELETE: hämtar CSRF och skickar i headern (X-CSRF-Token)
- * - credentials: 'include' för att få/returnera CSRF-cookie
- */
+// Central fetch
 export default async function fetchClient(path, options = {}) {
   const method = (options.method || 'GET').toUpperCase();
   const jwt = localStorage.getItem('token');
@@ -49,14 +39,12 @@ export default async function fetchClient(path, options = {}) {
   };
   if (jwt) headers.Authorization = `Bearer ${jwt}`;
 
-  // SKRIVANDE metoder => hämta CSRF och skicka headern
+  // Endast skrivande metoder behöver CSRF
   if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
-    const csrf = await ensureCsrf();     // <-- viktigt: väntar in token
+    const csrf = await ensureCsrf();
     if (csrf) {
-      headers['X-CSRF-Token'] = csrf;    // den varianten API:t förväntar sig
-      // extra kompatibilitet (skadar inte):
-      headers['CSRF-Token']   = csrf;
-      headers['X-XSRF-Token'] = csrf;
+      // OBS: bara DENNA header (andra orsakar CORS-block)
+      headers['X-CSRF-Token'] = csrf;
     }
   }
 
