@@ -5,21 +5,22 @@ const API = 'https://chatify-api.up.railway.app';
 async function getCsrf() {
   const res = await fetch(`${API}/csrf`, { method: 'PATCH' });
   const data = await res.json().catch(() => ({}));
-  return data?.csrfToken || data?.csrf || data?.token || null;
+  return (data && (data.csrfToken || data.csrf || data.token)) || null;
 }
-
 
 // Registrera användare
 export async function register({ username, email, password, avatar }) {
   const csrf = await getCsrf();
+
+  const headers = { 'Content-Type': 'application/json' };
+  if (csrf) headers['csrf-token'] = csrf; // OBS: använd 'csrf-token'
+
   const res = await fetch(`${API}/auth/register`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(csrf ? { 'X-CSRF-Token': csrf } : {})
-    },
+    headers,
     body: JSON.stringify({ username, email, password, avatar })
   });
+
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     throw new Error(data?.message || data?.error || 'Registrering misslyckades');
@@ -30,14 +31,16 @@ export async function register({ username, email, password, avatar }) {
 // Logga in och få JWT
 export async function login({ username, password }) {
   const csrf = await getCsrf();
+
+  const headers = { 'Content-Type': 'application/json' };
+  if (csrf) headers['csrf-token'] = csrf; // samma header här
+
   const res = await fetch(`${API}/auth/token`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(csrf ? { 'X-CSRF-Token': csrf } : {})
-    },
+    headers,
     body: JSON.stringify({ username, password })
   });
+
   const data = await res.json().catch(() => ({}));
   if (!res.ok || !data?.token) {
     throw new Error(data?.message || data?.error || 'Invalid credentials');
