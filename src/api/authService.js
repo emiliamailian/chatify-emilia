@@ -1,17 +1,13 @@
 // src/api/authService.js
 const API = 'https://chatify-api.up.railway.app';
 
-// Hämtar CSRF-token från /csrf (läser JSON-body, inga konstiga headers)
+// Hämtar CSRF-token från /csrf som JSON (utan cookies och extra headers)
 async function getCsrf() {
-  const res = await fetch(`${API}/csrf`, {
-    method: 'PATCH',
-    credentials: 'include',
-    headers: { Accept: 'application/json' }
-  });
+  const res = await fetch(`${API}/csrf`, { method: 'PATCH' });
   const data = await res.json().catch(() => ({}));
-  const token = data && (data.csrfToken || data.csrf || data.token) || null;
-  return token;
+  return data?.csrfToken || data?.csrf || data?.token || null;
 }
+
 
 // Registrera användare
 export async function register({ username, email, password, avatar }) {
