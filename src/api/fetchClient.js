@@ -1,31 +1,29 @@
 const API_BASE = 'https://chatify-api.up.railway.app';
 
-let csrfTokenCache = null;
-
-// Hämta CSRF-token från /csrf (JSON eller headers)
-async function fetchCsrfToken() {
+// Hämta CSRF-token från /csrf (läser både headers och body)
+async function getCsrfToken() {
   const res = await fetch(`${API_BASE}/csrf`, {
     method: 'PATCH',
-    credentials: 'include',
+    credentials: 'include',   // viktigt för CSRF-cookie
     cache: 'no-store',
+    headers: { Accept: 'application/json' },
   });
 
-  let data = {};
-  try { data = await res.json(); } catch {}
-
-  const h = Object.fromEntries(res.headers.entries());
+  // 1) prova headers
   const headerToken =
-    h['x-csrf-token'] ||
-    h['csrf-token'] ||
-    null;
+    res.headers.get('x-csrf-token') ||
+    res.headers.get('csrf-token');
 
-  return data?.csrfToken || data?.csrf || data?.token || headerToken || null;
-}
+  // 2) prova JSON-body
+  let bodyToken = null;
+  try {
+    const data = await res.json();
+    bodyToken = data?.csrfToken || data?.csrf || data?.token || null;
+  } catch {}
 
-async function ensureCsrf() {
-  if (csrfTokenCache) return csrfTokenCache;
-  csrfTokenCache = await fetchCsrfToken();
-  return csrfTokenCache;
+  const token = headerToken || bodyToken || null;
+  console.info('[CSRF] token =', token);
+  return token;
 }
 
 // Central fetch
@@ -39,13 +37,10 @@ export default async function fetchClient(path, options = {}) {
   };
   if (jwt) headers.Authorization = `Bearer ${jwt}`;
 
-  // Endast skrivande metoder behöver CSRF
+  // Endast för skrivande anrop skickar vi CSRF-header
   if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
-    const csrf = await ensureCsrf();
-    if (csrf) {
-      // OBS: bara DENNA header (andra orsakar CORS-block)
-      headers['X-CSRF-Token'] = csrf;
-    }
+    const csrf = await getCsrfToken();
+    if (csrf) headers['X-CSRF-Token'] = csrf; // bara denna header
   }
 
   const res = await fetch(`${API_BASE}${path}`, {
@@ -59,11 +54,9 @@ export default async function fetchClient(path, options = {}) {
   let data;
   try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
 
-  const headersObj = Object.fromEntries(res.headers.entries());
-
   if (!res.ok) {
     const message = data?.message || data?.error || res.statusText || 'Unknown error';
-    return { success: false, status: res.status, message, data, headers: headersObj };
+    return { success: false, status: res.status, message, data };
   }
-  return { success: true, status: res.status, data, headers: headersObj };
+  return { success: true, status: res.status, data };
 }
