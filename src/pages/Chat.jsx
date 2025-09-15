@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext.jsx'
-import SideNav from '../components/SideNav.jsx'
 import DOMPurify from 'dompurify'
 
 const API = import.meta.env.VITE_API_BASE
@@ -18,7 +17,6 @@ export default function Chat() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
-  // Hämta alla meddelanden
   async function loadMessages() {
     setError(null)
     try {
@@ -35,7 +33,7 @@ export default function Chat() {
 
   useEffect(() => { loadMessages() }, [])
 
-  // Skicka nytt meddelande
+  // Skicka nytt meddelande – CSRF i BODY (inte i header) för att undvika CORS
   async function sendMessage(e) {
     e.preventDefault()
     const clean = DOMPurify.sanitize(text, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] }).trim()
@@ -50,10 +48,9 @@ export default function Chat() {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          'csrf-token': csrf,               // CSRF krävs för POST
-          Authorization: `Bearer ${token}`, // JWT krävs
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ text: clean }), // API kräver "text"
+        body: JSON.stringify({ text: clean, csrfToken: csrf }), // 👈 här
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data?.message || `Fel ${res.status}`)
@@ -66,7 +63,7 @@ export default function Chat() {
     }
   }
 
-  // Radera mitt eget meddelande
+  // Radera – skicka CSRF i BODY (inte i header) för att undvika CORS
   async function removeMessage(id) {
     try {
       const csrf = await getCsrf()
@@ -75,9 +72,10 @@ export default function Chat() {
         method: 'DELETE',
         credentials: 'include',
         headers: {
-          'csrf-token': csrf,
+          'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
+        body: JSON.stringify({ csrfToken: csrf }), // 👈 här
       })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
@@ -89,7 +87,6 @@ export default function Chat() {
     }
   }
 
-  // Hjälpare
   const messageId = (m) => m.id || m._id
   const isMine = (m) => {
     const uid = user?.id
@@ -98,10 +95,6 @@ export default function Chat() {
 
   return (
     <main style={{ padding: 16, maxWidth: 760, margin: '0 auto' }}>
-      {/* Sidenav med logout-knapp */}
-      <SideNav />
-
-      {/* Header utan logout (den finns i sidenav) */}
       <header style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 12, justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
           <img
