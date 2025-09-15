@@ -33,7 +33,7 @@ export default function Chat() {
 
   useEffect(() => { loadMessages() }, [])
 
-  // Skicka nytt meddelande – CSRF i BODY (inte i header) för att undvika CORS
+  // POST /messages – skicka CSRF i HEADER (servern förväntar ofta detta)
   async function sendMessage(e) {
     e.preventDefault()
     const clean = DOMPurify.sanitize(text, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] }).trim()
@@ -48,22 +48,24 @@ export default function Chat() {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
+          'csrf-token': csrf,                // ⬅️ tillbaka till header
           Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
         },
-        body: JSON.stringify({ text: clean, csrfToken: csrf }), // 👈 här
+        body: JSON.stringify({ text: clean }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data?.message || `Fel ${res.status}`)
       setText('')
       await loadMessages()
     } catch (e) {
-      setError(e.message)
+      setError(e.message || 'Failed to fetch')
     } finally {
       setLoading(false)
     }
   }
 
-  // Radera – skicka CSRF i BODY (inte i header) för att undvika CORS
+  // DELETE /messages/{id} – CSRF i HEADER, ingen body
   async function removeMessage(id) {
     try {
       const csrf = await getCsrf()
@@ -72,10 +74,10 @@ export default function Chat() {
         method: 'DELETE',
         credentials: 'include',
         headers: {
-          'Content-Type': 'application/json',
+          'csrf-token': csrf,                // ⬅️ header
           Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
         },
-        body: JSON.stringify({ csrfToken: csrf }), // 👈 här
       })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
@@ -83,7 +85,7 @@ export default function Chat() {
       }
       setMessages(prev => prev.filter(m => (m.id || m._id) !== id))
     } catch (e) {
-      setError(e.message)
+      setError(e.message || 'Failed to fetch')
     }
   }
 
@@ -116,17 +118,8 @@ export default function Chat() {
       <section style={{ border: '1px solid #ddd', borderRadius: 8, padding: 12, minHeight: 240, background:'#fafafa' }}>
         {messages.length === 0 && <p>Inga meddelanden ännu.</p>}
         {messages.map((m) => (
-          <div key={messageId(m)} style={{
-            display: 'flex',
-            justifyContent: isMine(m) ? 'flex-end' : 'flex-start',
-            margin: '8px 0'
-          }}>
-            <div style={{
-              background: isMine(m) ? '#e6f7ff' : '#f3f3f3',
-              padding: '8px 12px',
-              borderRadius: 12,
-              maxWidth: '70%',
-            }}>
+          <div key={messageId(m)} style={{ display: 'flex', justifyContent: isMine(m) ? 'flex-end' : 'flex-start', margin: '8px 0' }}>
+            <div style={{ background: isMine(m) ? '#e6f7ff' : '#f3f3f3', padding: '8px 12px', borderRadius: 12, maxWidth: '70%' }}>
               <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                 {m.text || m.message}
               </div>
@@ -141,12 +134,7 @@ export default function Chat() {
       </section>
 
       <form onSubmit={sendMessage} style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-        <input
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="Skriv ett meddelande…"
-          style={{ flex: 1, padding: 8 }}
-        />
+        <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Skriv ett meddelande…" style={{ flex: 1, padding: 8 }} />
         <button type="submit" disabled={loading}>{loading ? 'Skickar…' : 'Skicka'}</button>
       </form>
     </main>
