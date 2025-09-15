@@ -1,14 +1,9 @@
+// src/pages/Chat.jsx
 import { useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext.jsx'
 import DOMPurify from 'dompurify'
 
 const API = import.meta.env.VITE_API_BASE
-
-async function getCsrf() {
-  const res = await fetch(`${API}/csrf`, { method: 'PATCH', credentials: 'include' })
-  const data = await res.json().catch(() => ({}))
-  return data?.csrf || data?.csrfToken || data?.token || null
-}
 
 export default function Chat() {
   const { token, user } = useAuth()
@@ -17,10 +12,12 @@ export default function Chat() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
+  // Hämta alla meddelanden (JWT i Authorization)
   async function loadMessages() {
     setError(null)
     try {
       const res = await fetch(`${API}/messages`, {
+        // ❗️endast JWT – ingen CSRF, inga cookies
         headers: { Authorization: `Bearer ${token}` },
       })
       const data = await res.json().catch(() => [])
@@ -33,7 +30,7 @@ export default function Chat() {
 
   useEffect(() => { loadMessages() }, [])
 
-  // POST /messages – skicka CSRF i HEADER (servern förväntar ofta detta)
+  // Skicka nytt meddelande (JWT i Authorization)
   async function sendMessage(e) {
     e.preventDefault()
     const clean = DOMPurify.sanitize(text, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] }).trim()
@@ -41,16 +38,12 @@ export default function Chat() {
     setLoading(true)
     setError(null)
     try {
-      const csrf = await getCsrf()
-      if (!csrf) throw new Error('CSRF saknas')
       const res = await fetch(`${API}/messages`, {
         method: 'POST',
-        credentials: 'include',
+        // ❗️ingen credentials, ingen CSRF – bara JWT
         headers: {
           'Content-Type': 'application/json',
-          'csrf-token': csrf,                // ⬅️ tillbaka till header
           Authorization: `Bearer ${token}`,
-          Accept: 'application/json',
         },
         body: JSON.stringify({ text: clean }),
       })
@@ -65,18 +58,13 @@ export default function Chat() {
     }
   }
 
-  // DELETE /messages/{id} – CSRF i HEADER, ingen body
+  // Radera mitt meddelande (JWT i Authorization)
   async function removeMessage(id) {
     try {
-      const csrf = await getCsrf()
-      if (!csrf) throw new Error('CSRF saknas')
       const res = await fetch(`${API}/messages/${id}`, {
         method: 'DELETE',
-        credentials: 'include',
         headers: {
-          'csrf-token': csrf,                // ⬅️ header
           Authorization: `Bearer ${token}`,
-          Accept: 'application/json',
         },
       })
       if (!res.ok) {
@@ -89,6 +77,7 @@ export default function Chat() {
     }
   }
 
+  // Hjälpare
   const messageId = (m) => m.id || m._id
   const isMine = (m) => {
     const uid = user?.id
@@ -118,8 +107,17 @@ export default function Chat() {
       <section style={{ border: '1px solid #ddd', borderRadius: 8, padding: 12, minHeight: 240, background:'#fafafa' }}>
         {messages.length === 0 && <p>Inga meddelanden ännu.</p>}
         {messages.map((m) => (
-          <div key={messageId(m)} style={{ display: 'flex', justifyContent: isMine(m) ? 'flex-end' : 'flex-start', margin: '8px 0' }}>
-            <div style={{ background: isMine(m) ? '#e6f7ff' : '#f3f3f3', padding: '8px 12px', borderRadius: 12, maxWidth: '70%' }}>
+          <div key={messageId(m)} style={{
+            display: 'flex',
+            justifyContent: isMine(m) ? 'flex-end' : 'flex-start',
+            margin: '8px 0'
+          }}>
+            <div style={{
+              background: isMine(m) ? '#e6f7ff' : '#f3f3f3',
+              padding: '8px 12px',
+              borderRadius: 12,
+              maxWidth: '70%',
+            }}>
               <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                 {m.text || m.message}
               </div>
@@ -134,7 +132,12 @@ export default function Chat() {
       </section>
 
       <form onSubmit={sendMessage} style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-        <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Skriv ett meddelande…" style={{ flex: 1, padding: 8 }} />
+        <input
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Skriv ett meddelande…"
+          style={{ flex: 1, padding: 8 }}
+        />
         <button type="submit" disabled={loading}>{loading ? 'Skickar…' : 'Skicka'}</button>
       </form>
     </main>
