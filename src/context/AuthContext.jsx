@@ -12,16 +12,17 @@ async function getCsrf() {
   return data?.csrf || data?.csrfToken || data?.token || null
 }
 
-async function loginRequest(email, password, csrf) {
+// Alltid: { username, password, csrfToken } — även om användaren skrev en e-postadress
+async function loginRequest(identifier, password, csrf) {
+  const payload = { username: identifier, password, csrfToken: csrf }
+
   const res = await fetch(`${API}/auth/token`, {
     method: 'POST',
-    credentials: 'include',           // viktigt för CSRF-cookie
-    headers: {
-      'Content-Type': 'application/json',
-      'csrf-token': csrf,
-    },
-    body: JSON.stringify({ email, password }),
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
   })
+
   const data = await res.json().catch(() => ({}))
   if (!res.ok) {
     const msg = data?.message || data?.error || 'Login failed'
@@ -38,21 +39,22 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     if (!token) { setUser(null); return }
     try {
-      const payload = jwtDecode(token)
+      const p = jwtDecode(token)
       setUser({
-        id: payload?.id || payload?.sub,
-        username: payload?.username || payload?.name,
-        avatar: payload?.avatar,
+        id: p?.id || p?.sub,
+        username: p?.username || p?.name,
+        avatar: p?.avatar,
       })
     } catch {
       setUser(null)
     }
   }, [token])
 
-  const login = async ({ email, password }) => {
+  const login = async ({ identifier, email, username, password }) => {
+    const id = identifier ?? email ?? username
     const csrf = await getCsrf()
     if (!csrf) throw new Error('Kunde inte hämta CSRF')
-    const t = await loginRequest(email, password, csrf)
+    const t = await loginRequest(id, password, csrf)
     localStorage.setItem(TOKEN_KEY, t)
     setToken(t)
     navigate('/chat', { replace: true })
@@ -75,5 +77,4 @@ export function AuthProvider({ children }) {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
-// 🔥 Viktigt: den här exporten ska finnas
 export const useAuth = () => useContext(AuthContext)

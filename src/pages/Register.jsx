@@ -14,7 +14,8 @@ export default function Register() {
   const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [avatar, setAvatar] = useState('https://i.pravatar.cc/200')
+  // låt fältet vara tomt – vi skapar ett unikt default om användaren inte anger något
+  const [avatar, setAvatar] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
@@ -24,16 +25,24 @@ export default function Register() {
     setError(null)
     try {
       const csrf = await getCsrf()
-      if (!csrf) throw new Error('Kunde inte hämta CSRF')
+      if (!csrf) throw new Error('Invalid CSRF token')
+
+      // 🔑 Unik avatar om inget angetts: pravatar med seed = username eller email
+      const chosenAvatar =
+        (avatar && avatar.trim()) ||
+        `https://i.pravatar.cc/200?u=${encodeURIComponent(username || email)}`
 
       const res = await fetch(`${API}/auth/register`, {
         method: 'POST',
         credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-          'csrf-token': csrf,
-        },
-        body: JSON.stringify({ username, email, password, avatar }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username,
+          email,
+          password,
+          avatar: chosenAvatar,
+          csrfToken: csrf,
+        }),
       })
 
       const data = await res.json().catch(() => ({}))
@@ -71,14 +80,20 @@ export default function Register() {
                  style={{ display: 'block', width: '100%', padding: 8 }}/>
         </label>
         <label style={{ display: 'block', marginTop: 12 }}>
-          Avatar-URL
-          <input value={avatar} onChange={(e) => setAvatar(e.target.value)} placeholder="https://i.pravatar.cc/200"
-                 style={{ display: 'block', width: '100%', padding: 8 }}/>
+          Avatar-URL (valfritt)
+          <input
+            value={avatar}
+            onChange={(e) => setAvatar(e.target.value)}
+            placeholder="Lämna tomt för unik pravatar"
+            style={{ display: 'block', width: '100%', padding: 8 }}
+          />
+          <small>Standard blir t.ex. https://i.pravatar.cc/200?u=&lt;ditt användarnamn&gt;</small>
         </label>
         <button type="submit" disabled={loading} style={{ marginTop: 16, padding: '8px 12px' }}>
           {loading ? 'Registrerar…' : 'Registrera'}
         </button>
       </form>
+
       <p style={{ marginTop: 16 }}>
         Har du redan konto? <Link to="/login">Logga in</Link>
       </p>

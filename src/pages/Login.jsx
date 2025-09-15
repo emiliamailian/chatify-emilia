@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx'
 
 export default function Login() {
   const { login } = useAuth()
-  const [email, setEmail] = useState('')
+  const [identifier, setIdentifier] = useState('') // e-post eller användarnamn
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -14,7 +14,7 @@ export default function Login() {
     setLoading(true)
     setError(null)
     try {
-      await login({ email, password }) // navigerar till /chat vid success
+      await login({ identifier, password }) // navigerar till /chat vid success
     } catch (err) {
       setError(err?.message || 'Inloggning misslyckades')
     } finally {
@@ -28,11 +28,10 @@ export default function Login() {
       {error && <p style={{ color: 'crimson' }}>{error}</p>}
       <form onSubmit={onSubmit}>
         <label style={{ display: 'block', marginTop: 12 }}>
-          E-post
+          Användarnamn
           <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            value={identifier}
+            onChange={(e) => setIdentifier(e.target.value)}
             required
             style={{ display: 'block', width: '100%', padding: 8 }}
           />
