@@ -12,7 +12,6 @@ async function getCsrf() {
   return data?.csrf || data?.csrfToken || data?.token || null
 }
 
-// Alltid: { username, password, csrfToken } — även om användaren skrev en e-postadress
 async function loginRequest(identifier, password, csrf) {
   const payload = { username: identifier, password, csrfToken: csrf }
 
@@ -42,7 +41,7 @@ export function AuthProvider({ children }) {
       const p = jwtDecode(token)
       setUser({
         id: p?.id || p?.sub,
-        username: p?.username || p?.name,
+        username: p?.username || p?.name || p?.email,
         avatar: p?.avatar,
       })
     } catch {

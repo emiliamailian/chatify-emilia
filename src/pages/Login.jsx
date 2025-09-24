@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx'
 
 export default function Login() {
   const { login } = useAuth()
-  const [identifier, setIdentifier] = useState('') // e-post eller användarnamn
+  const [identifier, setIdentifier] = useState('') 
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -14,7 +14,7 @@ export default function Login() {
     setLoading(true)
     setError(null)
     try {
-      await login({ identifier, password }) // navigerar till /chat vid success
+      await login({ identifier, password })
     } catch (err) {
       setError(err?.message || 'Inloggning misslyckades')
     } finally {

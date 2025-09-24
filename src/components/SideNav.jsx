@@ -7,7 +7,6 @@ export default function SideNav() {
 
   return (
     <>
-      {/* Menyknapp */}
       <button
         aria-label="Öppna meny"
         onClick={() => setOpen(true)}
@@ -19,7 +18,6 @@ export default function SideNav() {
         ☰
       </button>
 
-      {/* Overlay + Sidenav */}
       {open && (
         <div
           onClick={() => setOpen(false)}
@@ -46,7 +44,6 @@ export default function SideNav() {
               </div>
             </div>
 
-            {/* Uppgiften: visa endast en logout-knapp */}
             <button
               onClick={logout}
               style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', background: '#f7f7f7' }}

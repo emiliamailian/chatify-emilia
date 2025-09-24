@@ -8,10 +8,7 @@ import GuestOnly from './components/GuestOnly.jsx'
 export default function App() {
   return (
     <Routes>
-      {/* Roten -> /login (GuestOnly ser till att inloggade hamnar på /chat) */}
       <Route path="/" element={<Navigate to="/login" replace />} />
-
-      {/* Gäst-sidor: visas bara när man är utloggad */}
       <Route
         path="/login"
         element={
@@ -28,8 +25,6 @@ export default function App() {
           </GuestOnly>
         }
       />
-
-      {/* Skyddad sida: kräver inloggning */}
       <Route
         path="/chat"
         element={
@@ -38,8 +33,6 @@ export default function App() {
           </Protected>
         }
       />
-
-      {/* Fallback */}
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   )

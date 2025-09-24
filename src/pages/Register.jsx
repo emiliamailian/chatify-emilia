@@ -14,20 +14,20 @@ export default function Register() {
   const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  // låt fältet vara tomt – vi skapar ett unikt default om användaren inte anger något
   const [avatar, setAvatar] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [ok, setOk] = useState(null)
 
   const onSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
     setError(null)
+    setOk(null)
     try {
       const csrf = await getCsrf()
       if (!csrf) throw new Error('Invalid CSRF token')
 
-      // 🔑 Unik avatar om inget angetts: pravatar med seed = username eller email
       const chosenAvatar =
         (avatar && avatar.trim()) ||
         `https://i.pravatar.cc/200?u=${encodeURIComponent(username || email)}`
@@ -51,7 +51,8 @@ export default function Register() {
         throw new Error(msg)
       }
 
-      nav('/login', { replace: true })
+      setOk('Registrerad! Du skickas till Login...')
+      setTimeout(() => nav('/login', { replace: true }), 1000)
     } catch (err) {
       setError(err?.message || 'Registrering misslyckades')
     } finally {
@@ -63,6 +64,7 @@ export default function Register() {
     <main style={{ padding: 24, maxWidth: 500 }}>
       <h1>Registrera</h1>
       {error && <p style={{ color: 'crimson' }}>{error}</p>}
+      {ok && <p style={{ color: 'green' }}>{ok}</p>}
       <form onSubmit={onSubmit}>
         <label style={{ display: 'block', marginTop: 12 }}>
           Användarnamn

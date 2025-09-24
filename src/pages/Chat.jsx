@@ -13,11 +13,10 @@ export default function Chat() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
-  // Hämta alla meddelanden (endast JWT)
   async function loadMessages() {
     setError(null)
     try {
-      const res = await fetch(`${API}/messages`, {
+      const res = await fetch(`${API}/messages?conversationId=d8a9f3d2-e6bc-4e40-8ab8-47ebd8676c80`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       const data = await res.json().catch(() => [])
@@ -28,9 +27,10 @@ export default function Chat() {
     }
   }
 
-  useEffect(() => { loadMessages() }, [])
+  useEffect(() => {
+    if (token) loadMessages()
+  }, [token])
 
-  // Skicka nytt (endast JWT)
   async function sendMessage(e) {
     e.preventDefault()
     const clean = DOMPurify.sanitize(text, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] }).trim()
@@ -44,7 +44,7 @@ export default function Chat() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ text: clean }),
+        body: JSON.stringify({ text: clean, conversationId: 'd8a9f3d2-e6bc-4e40-8ab8-47ebd8676c80' }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data?.message || `Fel ${res.status}`)
@@ -57,7 +57,6 @@ export default function Chat() {
     }
   }
 
-  // Radera (endast JWT)
   async function removeMessage(id) {
     try {
       const res = await fetch(`${API}/messages/${id}`, {
@@ -74,18 +73,16 @@ export default function Chat() {
     }
   }
 
-  const messageId = (m) => m.id || m._id
-  const isMine = (m) => {
+  const messageId = m => m.id || m._id
+  const isMine = m => {
     const uid = user?.id
     return m.userId === uid || m.user_id === uid || m.user?.id === uid
   }
 
   return (
     <main style={{ padding: 16, maxWidth: 760, margin: '0 auto' }}>
-      {/* Sidenav med logout-knapp */}
       <SideNav />
 
-      {/* Header (utan logout – den finns i sidenav) */}
       <header style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 12 }}>
         <img
           src={user?.avatar || 'https://i.pravatar.cc/64'}
@@ -105,7 +102,7 @@ export default function Chat() {
 
       <section style={{ border: '1px solid #ddd', borderRadius: 8, padding: 12, minHeight: 240, background: '#fafafa' }}>
         {messages.length === 0 && <p>Inga meddelanden ännu.</p>}
-        {messages.map((m) => (
+        {messages.map(m => (
           <div key={messageId(m)} style={{ display: 'flex', justifyContent: isMine(m) ? 'flex-end' : 'flex-start', margin: '8px 0' }}>
             <div style={{ background: isMine(m) ? '#e6f7ff' : '#f3f3f3', padding: '8px 12px', borderRadius: 12, maxWidth: '70%' }}>
               <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
@@ -124,7 +121,7 @@ export default function Chat() {
       <form onSubmit={sendMessage} style={{ display: 'flex', gap: 8, marginTop: 12 }}>
         <input
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={e => setText(e.target.value)}
           placeholder="Skriv ett meddelande…"
           style={{ flex: 1, padding: 8 }}
         />
