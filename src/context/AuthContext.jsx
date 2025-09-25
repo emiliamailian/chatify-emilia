@@ -9,7 +9,7 @@ const API = import.meta.env.VITE_API_BASE
 async function getCsrf() {
   const res = await fetch(`${API}/csrf`, { method: 'PATCH', credentials: 'include' })
   const data = await res.json().catch(() => ({}))
-  return data?.csrf || data?.csrfToken || data?.token || null
+  return data.csrfToken;
 }
 
 async function loginRequest(identifier, password, csrf) {

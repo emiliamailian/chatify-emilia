@@ -1,4 +1,3 @@
-// src/pages/Chat.jsx
 import { useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext.jsx'
 import SideNav from '../components/SideNav.jsx'
